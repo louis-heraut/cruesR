@@ -90,6 +90,7 @@ ui = fluidPage(
 #' ...
 #' @export
 server = function(input, output, session) {
+    library(shiny)
     session$onSessionEnded(stopApp)
     
     rv = reactiveValues(lim=NULL,
@@ -363,5 +364,6 @@ server = function(input, output, session) {
 #' ...
 #' @export
 float = function () {
+    library(shiny)
     shinyApp(ui, server)
 }
