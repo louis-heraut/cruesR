@@ -158,6 +158,7 @@ server = function(input, output, session) {
 
                 x = rv$data[[rv$idDate]]
                 y = rv$data[[rv$idValue]]
+                maxValue_win = max(y, na.rm=TRUE)*1.05
                 x_label = names(rv$data)[rv$idDate]
                 y_label = names(rv$data)[rv$idValue]
                 
@@ -178,6 +179,38 @@ server = function(input, output, session) {
                                     font=list(size=12,
                                               color="white"),
                                     bordercolor="white"))
+
+                if (nrow(rv$store) > 0) {
+                    for (i in 1:nrow(rv$store)) {
+                        p = plotly::add_trace(
+                                        p,
+                                        type="scatter",
+                                        mode="lines",
+                                        x=c(rv$store[[1]][i],
+                                            rv$store[[1]][i],
+                                            rv$store[[2]][i],
+                                            rv$store[[2]][i],
+                                            rv$store[[1]][i]),
+                                        y=c(0, maxValue_win,
+                                            maxValue_win, 0, 0),
+                                        fill="toself",
+                                        opacity=0.4,
+                                        fillcolor=lightCyanCOL,
+                                        line=list(width=0),
+                                        text=paste0(
+                                            "from <b>",
+                                            rv$store[[1]][i], "</b>",
+                                            " to <b>", rv$store[[2]][i],
+                                            "</b>"),
+                                        hoverinfo="text",
+                                        hoveron="fills",
+                                        hoverlabel=
+                                            list(bgcolor=lightCyanCOL,
+                                                 font=list(color="white",
+                                                           size=12),
+                                                 bordercolor="white"))
+                    }
+                }
 
                 p = plotly::layout(
                                 p,
@@ -204,7 +237,7 @@ server = function(input, output, session) {
                                            mirror="all"),
                                 
                                 yaxis=list(
-                                    range=c(0, max(y)*1.05),
+                                    range=c(0, maxValue_win),
                                     title=list(
                                         text=paste0(
                                             "<b>",
@@ -266,8 +299,8 @@ server = function(input, output, session) {
     }, {        
         if(is.null(rv$zoom) ||
            names(rv$zoom[1]) %in% c("xaxis.autorange", "width")) {
-            xmin = min(rv$data[[rv$idDate]])
-            xmax = max(rv$data[[rv$idDate]])
+            xmin = min(rv$data[[rv$idDate]], na.rm=TRUE)
+            xmax = max(rv$data[[rv$idDate]], na.rm=TRUE)
         } else {
             xmin = gsub("[.][[:digit:]]+$", "", rv$zoom$`xaxis.range[0]`)
             xmax = gsub("[.][[:digit:]]+$", "", rv$zoom$`xaxis.range[1]`)
