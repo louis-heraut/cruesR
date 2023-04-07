@@ -1,0 +1,18 @@
+Package: cruesR
+Version: 0.0.1
+Date: 2023-04-07
+Title: cruesR
+Description: A shiny application that make time series events selection simpler.
+Authors@R: c(
+    person(given = "Louis",
+           family = "Héraut",
+           role = c("cre", "aut"),
+           email = "louis.heraut@inrae.fr")
+    )
+Encoding: UTF-8
+License: GPL-3 + file LICENSE
+Imports:
+    plotly,
+    shiny,
+    dplyr
+RoxygenNote: 7.2.3
