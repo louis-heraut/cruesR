@@ -14,7 +14,7 @@ This project was carried out for National Research Institute for Agriculture, Fo
 ## Installation
 For latest development version
 ``` r
-super-lou/cruesR
+remotes::install_github('super-lou/cruesR')
 ```
 
 

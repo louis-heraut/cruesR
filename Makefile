@@ -5,7 +5,7 @@ doc:
 	R -e 'devtools::document()'
 
 install:
-	R -e "super-lou/cruesR"
+	R -e "remotes::install_github('super-lou/cruesR')"
 
 check:
 	R -e 'devtools::check()'
