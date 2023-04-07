@@ -93,7 +93,8 @@ server = function(input, output, session) {
     library(shiny)
     session$onSessionEnded(stopApp)
     
-    rv = reactiveValues(lim=NULL,
+    rv = reactiveValues(filename=NULL,
+                        lim=NULL,
                         serie=0,
                         data=NULL,
                         idDate=NA,
@@ -106,8 +107,10 @@ server = function(input, output, session) {
         input$upload
     }, {
         if (!is.null(input$upload)) {
+            rv$filename = gsub("[.].*$", "",
+                               basename(input$upload$name))
             rv$data = dplyr::as_tibble(read.table(
-                                 file=input$upload$name,
+                                 file=input$upload$datapath,
                                  header=TRUE,
                                  sep=";",
                                  quote='"'))
@@ -343,7 +346,9 @@ server = function(input, output, session) {
 
     output$downloadData = downloadHandler(
         filename = function () {
-            paste0("period_selection_for_", input$filename, ".txt")
+            paste0("period_selection_for_",
+                   rv$filename,
+                   ".txt")
         },
         content = function (file) {
             write.table(rv$store_full,
