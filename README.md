@@ -1,4 +1,4 @@
-# cruesR [<img src="AE.png" align="right" width=160 height=160 alt=""/>](https://www.inrae.fr/en)
+# cruesR [<img src="www/algea.png" align="right" width=160 height=160 alt=""/>](https://www.inrae.fr/en)
 
 <!-- badges: start -->
 
