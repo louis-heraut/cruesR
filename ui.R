@@ -106,100 +106,150 @@ ui = bootstrapPage(
                 fileInput(inputId="upload",
                           label="")))
     ),
+
     
-    absolutePanel(
-        id='ana_panel',
-        class="Panel card-ana",
-        fixed=TRUE,
-        height="auto",
-        left=10, top=170,
+    hidden(
+        absolutePanel(
+            id='ana_panel',
+            class="Panel card-ana",
+            fixed=TRUE,
+            height="auto",
+            left=10, top=170,
 
-        div(class="Row",
-            div(class="row-label",
-                HTML(paste0("<span><b>Mode</b></span>"))),
-            div(class="sep"),
-            div(class="bunch",
-                
-                selectButton(
-                    class="selectButton",
-                    inputId="selectMode_select",
-                    label="Selection",
-                    icon_name=NULL,
-                    selected=TRUE,
-                    tooltip="Selection of high flow events"),
+            div(class="Row",
+                div(class="row-label",
+                    HTML(paste0("<span><b>Mode</b></span>"))),
+                div(class="sep"),
+                div(class="bunch",
+                    radioButton(
+                        class="radioButton",
+                        inputId="mode_choice",
+                        choiceNames=c("Linearise",
+                                      "Selection",
+                                      "Download"),
+                        selected="Linearise",
+                        choiceTooltips=c(
+                            "Linearise some parts of a chronic",
+                            "Selection of high flow events",
+                            "Download your work")))),
 
-                selectButton(
-                    class="selectButton",
-                    inputId="interpMode_select",
-                    label="Linearise",
-                    icon_name=NULL,
-                    selected=FALSE,
-                    tooltip="Linearise some parts of a chronic"))),
+            hidden(
+                div(class="Row", id="linearise_row",
+                    div(class="row-label",
+                        HTML(paste0("<span><b>Linearise</b></span>"))),
+                    div(class="sep"),
+                    div(class="bunch",
 
-        div(class="Row",
-            div(class="row-label",
-                HTML(paste0("<span><b>Selection</b></span>"))),
-            div(class="sep"),
-            div(class="bunch",
+                        selectButton(class="selectButton",
+                                     inputId="linearise_select",
+                                     label="Select",
+                                     icon_name=iconLib$data_array_white,
+                                     selected=FALSE,
+                                     tooltip=
+                                         "Select a period between two clicks"),
 
-                Button(class="Button",
-                       inputId="store_button",
-                       label="Store",
-                       icon_name=iconLib$add_white,
-                       tooltip="Store the selected period"),
-                
-                Button(class="Button",
-                       inputId="remove_button",
-                       label="Remove",
-                       icon_name=iconLib$remove_white,
-                       tooltip="Remove last selected period"),
-                
-                Button(class="Button",
-                       inputId="reset_button",
-                       label="Reset",
-                       icon_name=iconLib$refresh_white,
-                       tooltip="Reset all selected period")),
+                        Button(class="Button",
+                               inputId="linearise.linearise_button",
+                               label="Linearise",
+                               icon_name=iconLib$done_white,
+                               tooltip="Linearise the selected period"),
+                        
+                        Button(class="Button",
+                               inputId="linearise.remove_button",
+                               label="Remove",
+                               icon_name=iconLib$remove_white,
+                               tooltip="Remove last linearise period"),
+                        
+                        Button(class="Button",
+                               inputId="linearise.reset_button",
+                               label="Reset",
+                               icon_name=iconLib$refresh_white,
+                               tooltip="Reset all linearise period")))
+            ),
             
-            div(class="sep"),
-            div(class="bunch",
-                
-                Button(class="Button",
-                       inputId="download_button",
-                       label="Download",
-                       icon_name=iconLib$download_white,
-                       tooltip="Download all the selected period")))
+            hidden(
+                div(class="Row", id="selection_row",
+                    div(class="row-label",
+                        HTML(paste0("<span><b>Selection</b></span>"))),
+                    div(class="sep"),
+                    div(class="bunch",
+
+                        selectButton(class="selectButton",
+                                     inputId="selection_select",
+                                     label="Select",
+                                     icon_name=iconLib$data_array_white,
+                                     selected=FALSE,
+                                     tooltip=
+                                         "Select a period between two clicks"),
+
+                        Button(class="Button",
+                               inputId="selection.store_button",
+                               label="Store",
+                               icon_name=iconLib$add_white,
+                               tooltip="Store the selected period"),
+                        
+                        Button(class="Button",
+                               inputId="selection.remove_button",
+                               label="Remove",
+                               icon_name=iconLib$remove_white,
+                               tooltip="Remove last selected period"),
+                        
+                        Button(class="Button",
+                               inputId="selection.reset_button",
+                               label="Reset",
+                               icon_name=iconLib$refresh_white,
+                               tooltip="Reset all selected period")))
+            ),
+
+            hidden(
+                div(class="Row", id="download_row",
+                    div(class="row-label",
+                        HTML(paste0("<span><b>Download</b></span>"))),
+                    div(class="sep"),
+                    div(class="bunch",
+                        
+                        Button(class="Button",
+                               inputId="selection.download_button",
+                               label="All",
+                               icon_name=NULL,
+                               tooltip=
+                                   "Download all the selected period")))
+            )
+        )
     ),
 
+    hidden(
+        absolutePanel(
+            id='info_panel',
+            class="Panel card-info",
+            fixed=TRUE,
+            width="auto",
+            left=10, top=250,
 
-    absolutePanel(
-        id='info_panel',
-        class="Panel card-info",
-        fixed=TRUE,
-        width="auto",
-        left=10, top=250,
-
-        div(class="Row",
-            div(class="row-label",
-                HTML(paste0("<span><b>Storage</b></span>"))),
-            div(class="sep"),
-            div(htmlOutput(outputId="info")))
+            div(class="Row",
+                div(class="row-label",
+                    HTML(paste0("<span><b>Storage</b></span>"))),
+                div(class="sep"),
+                div(htmlOutput(outputId="info")))
+        )
     ),
-    
-    absolutePanel(
-        id='plot_panel',
-        class="Panel card-insert-c",
-        # style="background-color: transparent;",
-        fixed=TRUE,
-        width="auto",
-        top=310,
-        
-        div(style="margin-top: 10px;
+
+    hidden(
+        absolutePanel(
+            id='plot_panel',
+            class="Panel card-insert-c",
+            fixed=TRUE,
+            width="auto",
+            top=310,
+            
+            div(style="margin-top: 10px;
                    margin-left: 10px;
                    margin-bottom: 10px;
                    margin-right: 20px;",
-            plotly::plotlyOutput("plot",
-                                 width="auto",
-                                 height="auto"))
+                plotly::plotlyOutput("plot",
+                                     width="auto",
+                                     height="auto"))
+        )
     )
 
 

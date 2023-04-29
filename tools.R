@@ -19,6 +19,21 @@
 # If not, see <https://www.gnu.org/licenses/>.
 
 
+
+deselect_mode = function (session, rv) {
+    updateSelectButton(
+        session=session,
+        class="selectButton",
+        inputId="linearise_select",
+        selected=FALSE)
+    updateSelectButton(
+        session=session,
+        class="selectButton",
+        inputId="selection_select",
+        selected=FALSE)
+    rv$mode = ""
+}
+
 #' @title float
 #' @description ...
 #' @param input ...

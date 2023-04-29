@@ -31,19 +31,45 @@
 #' @export
 server = function(input, output, session) {
     session$onSessionEnded(stopApp)
+
+    js <- "
+    function(el, x, inputName){
+      var id = el.getAttribute('id');
+      var gd = document.getElementById(id);
+      var d3 = Plotly.d3;
+      Plotly.update(id).then(attach);
+        function attach() {
+          gd.addEventListener('click', function(evt) {
+            var xaxis = gd._fullLayout.xaxis;
+            var yaxis = gd._fullLayout.yaxis;
+            var bb = evt.target.getBoundingClientRect();
+            var x = xaxis.p2d(evt.clientX - bb.left);
+            var y = yaxis.p2d(evt.clientY - bb.top);
+            var coordinates = [x, y];
+            Shiny.setInputValue(inputName, coordinates);
+          });
+        };
+  }
+  "
     
     rv = reactiveValues(filename=NULL,
-                        lim=NULL,
+                        mode="",
+                        x1_tmp=NA,
+                        x1=NA,
+                        x2_tmp=NA,
+                        x2=NA,
+                        # lim=NULL,
                         serie=0,
                         data=NULL,
                         idDate=NA,
                         idValue=NA,
-                        zoom=NULL,
+                        # zoom=NULL,
                         store=dplyr::tibble(),
                         store_full=dplyr::tibble())
 
     
     observeEvent(input$upload, {
+        deselect_mode(session, rv)
         if (!is.null(input$upload)) {
             rv$filename = gsub("[.].*$", "",
                                basename(input$upload$name))
@@ -79,13 +105,213 @@ server = function(input, output, session) {
                                         "%Y-%m-%d",
                                         "%Y/%m/%d",
                                         "%Y%m%d"))
+            showElement(id='ana_panel')
+            showElement(id='info_panel')
+            showElement(id='plot_panel')
         } else {
             rv$data = NULL
         }
     })
+
+
+
+    observeEvent(input$mode_choice, {
+        deselect_mode(session, rv)
+        if (input$mode_choice == "Linearise") {
+            hide(id='selection_row')
+            hide(id='download_row')
+            showElement(id='linearise_row')
+            
+        } else if (input$mode_choice == "Selection") {
+            hide(id='linearise_row')
+            hide(id='download_row')
+            showElement(id='selection_row')
+            
+        } else if (input$mode_choice == "Download") {
+            hide(id='linearise_row')
+            hide(id='selection_row')
+            showElement(id='download_row')
+        }
+    })
+
+    observe({
+        if (!is.null(input$linearise_select) |
+            !is.null(input$selection_select)) {
+            if (rv$mode != "select") {
+                rv$mode = "select"
+            }
+        } else {
+            if (rv$mode == "select") {
+                deselect_mode(session, rv)
+            }
+        }
+    })
+
+    observeEvent(input$clickposition, {
+        if (rv$mode == "select") {
+            if (is.na(rv$x1_tmp)) {
+                rv$x1_tmp = as.POSIXct(input$clickposition[1])
+            } else {
+                rv$x2_tmp = as.POSIXct(input$clickposition[1])
+            }
+        }
+    })
+
+    observeEvent({
+        rv$x1_tmp
+        rv$x2_tmp
+    }, {
+        if (rv$mode == "select" &
+            !is.na(rv$x1_tmp) & !is.na(rv$x2_tmp)) {
+            rv$x1 = rv$x1_tmp
+            rv$x2 = rv$x2_tmp
+            rv$x1_tmp = NA
+            rv$x2_tmp = NA
+        }
+        
+    })
+
+
+    
+    observeEvent(input$linearise.linearise_button, {
+        deselect_mode(session, rv)
+        # rv$serie = rv$serie + 1
+        # data = dplyr::filter(rv$data,
+        #                      rv$lim[1] <= rv$data[[rv$idDate]] &
+        #                      rv$data[[rv$idDate]] <= rv$lim[2])
+        # rv$store_full = dplyr::bind_rows(
+        #                            rv$store_full,
+        #                            dplyr::tibble(serie=rv$serie,
+        #                                          data))
+        # rv$store = dplyr::bind_rows(
+        #                       rv$store,
+        #                       dplyr::tibble(start=rv$lim[1],
+        #                                     end=rv$lim[2]))
+    })
+
+    observeEvent(input$linearise.remove_button, {
+        deselect_mode(session, rv)
+        # rv$store = rv$store[1:(nrow(rv$store)-1),]
+        # rv$store_full = dplyr::filter(rv$store_full, serie != rv$serie)
+        # rv$serie = rv$serie - 1
+    })
+
+    observeEvent(input$linearise.reset_button, {
+        deselect_mode(session, rv)
+        # rv$serie = 0
+        # rv$store = dplyr::tibble()
+        # rv$store_full = dplyr::tibble()
+    })
+    
+
+    
+    observeEvent(input$selection.store_button, {
+        deselect_mode(session, rv)
+        rv$serie = rv$serie + 1
+        data = dplyr::filter(rv$data,
+                             rv$x1 <= rv$data[[rv$idDate]] &
+                             rv$data[[rv$idDate]] <= rv$x2)
+        rv$store_full = dplyr::bind_rows(
+                                   rv$store_full,
+                                   dplyr::tibble(serie=rv$serie,
+                                                 data))
+        rv$store = dplyr::bind_rows(
+                              rv$store,
+                              dplyr::tibble(start=rv$x1,
+                                            end=rv$x2))
+    })
+
+    observeEvent(input$selection.remove_button, {
+        deselect_mode(session, rv)
+        rv$store = rv$store[1:(nrow(rv$store)-1),]
+        rv$store_full = dplyr::filter(rv$store_full, serie != rv$serie)
+        rv$serie = rv$serie - 1
+    })
+
+    observeEvent(input$selection.reset_button, {
+        deselect_mode(session, rv)
+        rv$serie = 0
+        rv$store = dplyr::tibble()
+        rv$store_full = dplyr::tibble()
+    })
+
+
+
+
+
+    
+
+    # lim = reactive({
+    #     if (is.null(rv$lim)) {
+    #         " "
+    #     } else {
+    #         paste0("from ", "<b>", rv$lim[1], "</b>",
+    #                " to ", "<b>", rv$lim[2], "</b>")
+    #     }
+    # })
+    # output$lim = renderUI({
+    #     HTML(lim())
+    # })
+
+    info = reactive({
+        if (nrow(rv$store) == 0) {
+            "<font size='3' color='#00a3a6'>Select a period on the graph and click on the </font><font size='3' color='#66c1bf'><b>Store</b></font><font size='3' color='#00a3a6'> button</font>"
+        } else {
+            date_start = format(rv$store$start, "%d %b %Y")
+            time_start = format(rv$store$start, "%H:%M:%S")
+            date_end = format(rv$store$end, "%d %b %Y")
+            time_end = format(rv$store$end, "%H:%M:%S")
+
+            tmp = paste0(
+                "<b><font size='3' color='#00a3a6'> ",
+                date_start, "</font></b>",
+                "<font size='2' color='#00a3a6'> ",
+                time_start, "</font>",
+                " / ",
+                "<b><font size='3' color='#00a3a6'> ",
+                date_end, "</font></b>",
+                "<font size='2' color='#00a3a6'> ",
+                time_end, "</font>")
+            tmp[length(tmp)] = gsub("00a3a6", "66c1bf", tmp[length(tmp)])
+            tmp = tail(tmp, n=4)
+            
+            paste0(tmp, collapse="&emsp;")
+        }
+    })
+
+    output$info = renderUI({
+        HTML(info())
+    })
+
+    observeEvent(input$selection.download_button, {
+        output$downloadData = downloadHandler(
+            filename = function () {
+                paste0("period_selection_for_",
+                       rv$filename,
+                       ".txt")
+            },
+            content = function (file) {
+                write.table(rv$store_full,
+                            file,
+                            sep=";",
+                            row.names=FALSE)
+            }
+        )
+        jsinject = "setTimeout(function()
+                        {window.open($('#downloadData')
+                        .attr('href'))}, 100);"
+        session$sendCustomMessage(type='jsCode',
+                                  list(value=jsinject))
+    })
+
+    
     
     # React to changes in date range input
-    observeEvent(rv$data, {
+    observeEvent({
+        rv$data
+        rv$x1
+        rv$x2
+    }, {
         if (!is.null(rv$data)) {
             output$plot = plotly::renderPlotly({
                 
@@ -118,6 +344,39 @@ server = function(input, output, session) {
                                               color="white"),
                                     bordercolor="white"))
 
+
+                if (!is.na(rv$x1) & !is.na(rv$x2)) {
+                    if (rv$mode == "select") {
+                        fillcolor = lightCyanCOL
+                    } else {
+                        fillcolor = darkCyanCOL 
+                    }
+                    p = plotly::add_trace(
+                                    p,
+                                    type="scatter",
+                                    mode="lines",
+                                    x=c(rv$x1, rv$x1,
+                                        rv$x2, rv$x2, rv$x1),
+                                    y=c(0, maxValue_win,
+                                        maxValue_win, 0, 0),
+                                    fill="toself",
+                                    opacity=0.4,
+                                    fillcolor=fillcolor,
+                                    line=list(width=0),
+                                    text=paste0(
+                                        "from <b>",
+                                        rv$x1, "</b>",
+                                        " to <b>", rv$x2,
+                                        "</b>"),
+                                    hoverinfo="text",
+                                    hoveron="fills",
+                                    hoverlabel=
+                                        list(bgcolor=lightCyanCOL,
+                                             font=list(color="white",
+                                                       size=12),
+                                             bordercolor="white"))
+                }
+                
                 if (nrow(rv$store) > 0) {
                     for (i in 1:nrow(rv$store)) {
                         p = plotly::add_trace(
@@ -133,7 +392,7 @@ server = function(input, output, session) {
                                             maxValue_win, 0, 0),
                                         fill="toself",
                                         opacity=0.4,
-                                        fillcolor=lightCyanCOL,
+                                        fillcolor=darkCyanCOL,
                                         line=list(width=0),
                                         text=paste0(
                                             "from <b>",
@@ -143,7 +402,7 @@ server = function(input, output, session) {
                                         hoverinfo="text",
                                         hoveron="fills",
                                         hoverlabel=
-                                            list(bgcolor=lightCyanCOL,
+                                            list(bgcolor=darkCyanCOL,
                                                  font=list(color="white",
                                                            size=12),
                                                  bordercolor="white"))
@@ -209,141 +468,58 @@ server = function(input, output, session) {
                                          "hoverCompareCartesian",
                                          "hoverClosestCartesian")
                             )
-                p = plotly::event_register(p, 'plotly_relayout')
+                # p = plotly::event_register(p, 'plotly_relayout')
+                htmlwidgets::onRender(p, js, data="clickposition")
             })
         } else {
             output$plot = plotly::renderPlotly({
                 p = plotly::plot_ly()
-                p = plotly::event_register(p, 'plotly_relayout')
+                # p = plotly::event_register(p, 'plotly_relayout')
             })
         }
     })
 
-    observe({
-        rv$zoom = plotly::event_data("plotly_relayout")
-    })
+    # observe({
+    #     rv$zoom = plotly::event_data("plotly_relayout")
+    # })
 
-    observeEvent({
-        rv$zoom
-        rv$data
-    }, {        
-        if(is.null(rv$zoom) ||
-           names(rv$zoom[1]) %in% c("xaxis.autorange", "width")) {
-            xmin = min(rv$data[[rv$idDate]], na.rm=TRUE)
-            xmax = max(rv$data[[rv$idDate]], na.rm=TRUE)
-        } else {
-            xmin = gsub("[.][[:digit:]]+$", "", rv$zoom$`xaxis.range[0]`)
-            xmax = gsub("[.][[:digit:]]+$", "", rv$zoom$`xaxis.range[1]`)
-            xmin = as.POSIXct(xmin,
-                              tryFormats=c("%Y-%m-%d %H:%M:%OS",
-                                           "%Y/%m/%d %H:%M:%OS",
-                                           "%Y-%m-%d %H:%M",
-                                           "%Y/%m/%d %H:%M",
-                                           "%Y-%m-%d",
-                                           "%Y/%m/%d",
-                                           "%Y%m%d"))
-            xmax = as.POSIXct(xmax,
-                              tryFormats=c("%Y-%m-%d %H:%M:%OS",
-                                           "%Y/%m/%d %H:%M:%OS",
-                                           "%Y-%m-%d %H:%M",
-                                           "%Y/%m/%d %H:%M",
-                                           "%Y-%m-%d",
-                                           "%Y/%m/%d",
-                                           "%Y%m%d"))
 
-        }
-        rv$lim = c(xmin, xmax)
-    })
+
     
-    observeEvent(input$store_button, {
-        rv$serie = rv$serie + 1
-        data = dplyr::filter(rv$data,
-                             rv$lim[1] <= rv$data[[rv$idDate]] &
-                             rv$data[[rv$idDate]] <= rv$lim[2])
-        rv$store_full = dplyr::bind_rows(
-                                   rv$store_full,
-                                   dplyr::tibble(serie=rv$serie,
-                                                 data))
-        rv$store = dplyr::bind_rows(
-                             rv$store,
-                             dplyr::tibble(start=rv$lim[1],
-                                           end=rv$lim[2]))
-    })
 
-    observeEvent(input$remove_button, {
-        rv$store = rv$store[1:(nrow(rv$store)-1),]
-        rv$store_full = dplyr::filter(rv$store_full, serie != rv$serie)
-        rv$serie = rv$serie - 1
-    })
+    # observeEvent({
+    #     rv$zoom
+    #     rv$data
+    # }, {        
+    #     if(is.null(rv$zoom) ||
+    #        names(rv$zoom[1]) %in% c("xaxis.autorange", "width")) {
+    #         xmin = min(rv$data[[rv$idDate]], na.rm=TRUE)
+    #         xmax = max(rv$data[[rv$idDate]], na.rm=TRUE)
+    #     } else {
+    #         xmin = gsub("[.][[:digit:]]+$", "", rv$zoom$`xaxis.range[0]`)
+    #         xmax = gsub("[.][[:digit:]]+$", "", rv$zoom$`xaxis.range[1]`)
+    #         xmin = as.POSIXct(xmin,
+    #                           tryFormats=c("%Y-%m-%d %H:%M:%OS",
+    #                                        "%Y/%m/%d %H:%M:%OS",
+    #                                        "%Y-%m-%d %H:%M",
+    #                                        "%Y/%m/%d %H:%M",
+    #                                        "%Y-%m-%d",
+    #                                        "%Y/%m/%d",
+    #                                        "%Y%m%d"))
+    #         xmax = as.POSIXct(xmax,
+    #                           tryFormats=c("%Y-%m-%d %H:%M:%OS",
+    #                                        "%Y/%m/%d %H:%M:%OS",
+    #                                        "%Y-%m-%d %H:%M",
+    #                                        "%Y/%m/%d %H:%M",
+    #                                        "%Y-%m-%d",
+    #                                        "%Y/%m/%d",
+    #                                        "%Y%m%d"))
 
-    observeEvent(input$reset_button, {
-        rv$serie = 0
-        rv$store = dplyr::tibble()
-        rv$store_full = dplyr::tibble()
-    })
-
-    lim = reactive({
-        if (is.null(rv$lim)) {
-            " "
-        } else {
-            paste0("from ", "<b>", rv$lim[1], "</b>",
-                   " to ", "<b>", rv$lim[2], "</b>")
-        }
-    })
-    output$lim = renderUI({
-        HTML(lim())
-    })
-
-    info = reactive({
-        if (nrow(rv$store) == 0) {
-            "<font size='3' color='#00a3a6'>Select a period on the graph and click on the </font><font size='3' color='#66c1bf'><b>Store</b></font><font size='3' color='#00a3a6'> button</font>"
-        } else {
-            date_start = format(rv$store$start, "%d %b %Y")
-            time_start = format(rv$store$start, "%H:%M:%S")
-            date_end = format(rv$store$end, "%d %b %Y")
-            time_end = format(rv$store$end, "%H:%M:%S")
-
-            tmp = paste0(
-                "<b><font size='3' color='#00a3a6'> ",
-                date_start, "</font></b>",
-                "<font size='2' color='#00a3a6'> ",
-                time_start, "</font>",
-                " / ",
-                "<b><font size='3' color='#00a3a6'> ",
-                date_end, "</font></b>",
-                "<font size='2' color='#00a3a6'> ",
-                time_end, "</font>")
-            tmp[length(tmp)] = gsub("00a3a6", "66c1bf", tmp[length(tmp)])
-            tmp = tail(tmp, n=4)
-            
-            paste0(tmp, collapse="&emsp;")
-        }
-    })
-
-    output$info = renderUI({
-        HTML(info())
-    })
-
-    observeEvent(input$download_button, {
-        output$downloadData = downloadHandler(
-            filename = function () {
-                paste0("period_selection_for_",
-                       rv$filename,
-                       ".txt")
-            },
-            content = function (file) {
-                write.table(rv$store_full,
-                            file,
-                            sep=";",
-                            row.names=FALSE)
-            }
-        )
-        jsinject = "setTimeout(function()
-                        {window.open($('#downloadData')
-                        .attr('href'))}, 100);"
-        session$sendCustomMessage(type='jsCode',
-                                  list(value=jsinject))
-    })
+    #     }
+    #     rv$lim = c(xmin, xmax)
+    # })
+    
+    
     
 
 

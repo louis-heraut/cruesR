@@ -22,6 +22,7 @@
 library(shiny)
 library(shinyjs)
 library(shinyWidgets)
+library(htmlwidgets)
 library(icons)
 library(dplyr)
 
