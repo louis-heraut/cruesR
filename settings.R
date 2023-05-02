@@ -45,7 +45,15 @@ redCOL = "#dc343b"
 lightCyanCOL = "#66c1bf"
 midCyanCOL = "#008c8e"
 darkCyanCOL = "#275662"
-INRAECyanCOL = "#00a3a6" 
+INRAECyanCOL = "#00a3a6"
+
+tryFormats = c("%Y-%m-%d %H:%M:%OS",
+               "%Y/%m/%d %H:%M:%OS",
+               "%Y-%m-%d %H:%M",
+               "%Y/%m/%d %H:%M",
+               "%Y-%m-%d",
+               "%Y/%m/%d",
+               "%Y%m%d")
 
 
 # Resources directory

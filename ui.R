@@ -35,6 +35,17 @@ ui = bootstrapPage(
 	});
     ')),
 
+    tags$head(tags$script(HTML(paste(
+    "$(document).on('keydown', function(event){",
+    "  var key = event.which;",
+    "  if(key === 37){",
+    "    Shiny.setInputValue('arrowLeft', true, {priority: 'event'});",
+    "  } else if(key === 39){",
+    "    Shiny.setInputValue('arrowRight', true, {priority: 'event'});",
+    "  }",
+    "});"
+    )))),
+
     useShinyjs(),
 
     downloadLink("downloadData", label=""),

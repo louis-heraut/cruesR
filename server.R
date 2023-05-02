@@ -58,14 +58,17 @@ server = function(input, output, session) {
                         x1=NA,
                         x2_tmp=NA,
                         x2=NA,
-                        # lim=NULL,
-                        serie=0,
+                        lim=NULL,
+                        id_selection=0,
+                        id_linearise=0,
                         data=NULL,
+                        data_load=NULL,
                         idDate=NA,
                         idValue=NA,
-                        # zoom=NULL,
-                        store=dplyr::tibble(),
-                        store_full=dplyr::tibble())
+                        zoom=NULL,
+                        linearise=dplyr::tibble(),
+                        selection=dplyr::tibble(),
+                        selection_full=dplyr::tibble())
 
     
     observeEvent(input$upload, {
@@ -98,13 +101,10 @@ server = function(input, output, session) {
             rv$idValue = 2
             rv$data[[rv$idDate]] =
                 as.POSIXct(as.character(rv$data[[rv$idDate]]),
-                           tryFormats=c("%Y-%m-%d %H:%M:%OS",
-                                        "%Y/%m/%d %H:%M:%OS",
-                                        "%Y-%m-%d %H:%M",
-                                        "%Y/%m/%d %H:%M",
-                                        "%Y-%m-%d",
-                                        "%Y/%m/%d",
-                                        "%Y%m%d"))
+                           tryFormats=tryFormats)
+
+            rv$data_load = rv$data
+            
             showElement(id='ana_panel')
             showElement(id='info_panel')
             showElement(id='plot_panel')
@@ -168,112 +168,124 @@ server = function(input, output, session) {
             rv$x1_tmp = NA
             rv$x2_tmp = NA
         }
-        
     })
-
 
     
     observeEvent(input$linearise.linearise_button, {
         deselect_mode(session, rv)
-        # rv$serie = rv$serie + 1
-        # data = dplyr::filter(rv$data,
-        #                      rv$lim[1] <= rv$data[[rv$idDate]] &
-        #                      rv$data[[rv$idDate]] <= rv$lim[2])
-        # rv$store_full = dplyr::bind_rows(
-        #                            rv$store_full,
-        #                            dplyr::tibble(serie=rv$serie,
-        #                                          data))
-        # rv$store = dplyr::bind_rows(
-        #                       rv$store,
-        #                       dplyr::tibble(start=rv$lim[1],
-        #                                     end=rv$lim[2]))
+        
+        x1 = as.POSIXct(rv$x1)
+        x2 = as.POSIXct(rv$x2)
+        
+        id1 = which.min(abs(rv$data[[rv$idDate]]-x1))
+        y1 = rv$data[[rv$idValue]][id1]
+        id2 = which.min(abs(rv$data[[rv$idDate]]-x2))
+        y2 = rv$data[[rv$idValue]][id2]
+        
+        a = (y2-y1) / as.numeric(difftime(x2, x1, units="secs"))
+        b = y1 - a*as.numeric(x1)
+
+        ok = x1 <= rv$data[[rv$idDate]] &
+            rv$data[[rv$idDate]] <= x2
+        
+        rv$data[[rv$idValue]][ok] =
+            a*as.numeric(rv$data[[rv$idDate]][ok]) + b
+        
+        rv$id_linearise = rv$id_linearise + 1
+        rv$linearise = dplyr::bind_rows(
+                                  rv$linearise,
+                                  dplyr::tibble(start=x1,
+                                                end=x2))
+        rv$x1 = NA
+        rv$x2 = NA
     })
 
     observeEvent(input$linearise.remove_button, {
         deselect_mode(session, rv)
-        # rv$store = rv$store[1:(nrow(rv$store)-1),]
-        # rv$store_full = dplyr::filter(rv$store_full, serie != rv$serie)
-        # rv$serie = rv$serie - 1
+        range = rv$linearise[nrow(rv$linearise),]
+
+        ok = range$start <= rv$data[[rv$idDate]] &
+            rv$data[[rv$idDate]] <= range$end
+        rv$data[[rv$idValue]][ok] = rv$data_load[[rv$idValue]][ok]
+        
+        rv$linearise = rv$linearise[1:(nrow(rv$linearise)-1),]
+        rv$id_linearise = rv$id_linearise - 1
     })
 
     observeEvent(input$linearise.reset_button, {
         deselect_mode(session, rv)
-        # rv$serie = 0
-        # rv$store = dplyr::tibble()
-        # rv$store_full = dplyr::tibble()
+        rv$id_linearise = 0
+        rv$linearise = dplyr::tibble()
     })
-    
-
     
     observeEvent(input$selection.store_button, {
         deselect_mode(session, rv)
-        rv$serie = rv$serie + 1
+        rv$id_selection = rv$id_selection + 1
         data = dplyr::filter(rv$data,
                              rv$x1 <= rv$data[[rv$idDate]] &
                              rv$data[[rv$idDate]] <= rv$x2)
-        rv$store_full = dplyr::bind_rows(
-                                   rv$store_full,
-                                   dplyr::tibble(serie=rv$serie,
+        rv$selection_full = dplyr::bind_rows(
+                                   rv$selection_full,
+                                   dplyr::tibble(id_selection=rv$id_selection,
                                                  data))
-        rv$store = dplyr::bind_rows(
-                              rv$store,
+        rv$selection = dplyr::bind_rows(
+                              rv$selection,
                               dplyr::tibble(start=rv$x1,
                                             end=rv$x2))
+        rv$x1 = NA
+        rv$x2 = NA
     })
 
     observeEvent(input$selection.remove_button, {
         deselect_mode(session, rv)
-        rv$store = rv$store[1:(nrow(rv$store)-1),]
-        rv$store_full = dplyr::filter(rv$store_full, serie != rv$serie)
-        rv$serie = rv$serie - 1
+        rv$selection = rv$selection[1:(nrow(rv$selection)-1),]
+        rv$selection_full = dplyr::filter(rv$selection_full, id_selection != rv$id_selection)
+        rv$id_selection = rv$id_selection - 1
     })
 
     observeEvent(input$selection.reset_button, {
         deselect_mode(session, rv)
-        rv$serie = 0
-        rv$store = dplyr::tibble()
-        rv$store_full = dplyr::tibble()
+        rv$id_selection = 0
+        rv$selection = dplyr::tibble()
+        rv$selection_full = dplyr::tibble()
     })
 
 
 
-
-
-    
-
-    # lim = reactive({
-    #     if (is.null(rv$lim)) {
-    #         " "
-    #     } else {
-    #         paste0("from ", "<b>", rv$lim[1], "</b>",
-    #                " to ", "<b>", rv$lim[2], "</b>")
-    #     }
-    # })
-    # output$lim = renderUI({
-    #     HTML(lim())
-    # })
-
     info = reactive({
-        if (nrow(rv$store) == 0) {
+        if (nrow(rv$selection) == 0 & is.na(rv$x1) & is.na(rv$x2)) {
             "<font size='3' color='#00a3a6'>Select a period on the graph and click on the </font><font size='3' color='#66c1bf'><b>Store</b></font><font size='3' color='#00a3a6'> button</font>"
         } else {
-            date_start = format(rv$store$start, "%d %b %Y")
-            time_start = format(rv$store$start, "%H:%M:%S")
-            date_end = format(rv$store$end, "%d %b %Y")
-            time_end = format(rv$store$end, "%H:%M:%S")
 
+            start = rev(rv$selection$start)
+            end = rev(rv$selection$end)
+            
+            if (!is.na(rv$x1) & !is.na(rv$x2)) {
+                xmin = min(c(rv$x1, rv$x2))
+                xmax = max(c(rv$x1, rv$x2))
+                start = c(xmin, start)
+                end = c(xmax, end)
+            }
+            
+            date_start = format(start, "%d %b %Y")
+            time_start = format(start, "%H:%M:%S")
+            date_end = format(end, "%d %b %Y")
+            time_end = format(end, "%H:%M:%S")
+
+            
             tmp = paste0(
-                "<b><font size='3' color='#00a3a6'> ",
-                date_start, "</font></b>",
-                "<font size='2' color='#00a3a6'> ",
-                time_start, "</font>",
+                "<font color='", darkCyanCOL,"'> ",
+                "<b><font size='3'> ", date_start, "</font></b>",
+                "<font size='2'> ", time_start, "</font>",
                 " / ",
-                "<b><font size='3' color='#00a3a6'> ",
-                date_end, "</font></b>",
-                "<font size='2' color='#00a3a6'> ",
-                time_end, "</font>")
-            tmp[length(tmp)] = gsub("00a3a6", "66c1bf", tmp[length(tmp)])
-            tmp = tail(tmp, n=4)
+                "<b><font size='3'> ", date_end, "</font></b>",
+                "<font size='2'> ", time_end, "</font></font>")
+
+            if (!is.na(rv$x1) & !is.na(rv$x2)) {
+                tmp[1] = gsub("275662", "66c1bf", tmp[1])
+            }
+            
+            tmp = head(tmp, n=4)
             
             paste0(tmp, collapse="&emsp;")
         }
@@ -291,7 +303,7 @@ server = function(input, output, session) {
                        ".txt")
             },
             content = function (file) {
-                write.table(rv$store_full,
+                write.table(rv$selection_full,
                             file,
                             sep=";",
                             row.names=FALSE)
@@ -305,13 +317,13 @@ server = function(input, output, session) {
     })
 
     
-    
     # React to changes in date range input
     observeEvent({
         rv$data
         rv$x1
         rv$x2
     }, {
+
         if (!is.null(rv$data)) {
             output$plot = plotly::renderPlotly({
                 
@@ -320,11 +332,66 @@ server = function(input, output, session) {
                 
                 p = plotly::plot_ly()
 
+                x_load = rv$data_load[[rv$idDate]]
+                y_load = rv$data_load[[rv$idValue]]
+                
                 x = rv$data[[rv$idDate]]
                 y = rv$data[[rv$idValue]]
                 maxValue_win = max(y, na.rm=TRUE)*1.05
                 x_label = names(rv$data)[rv$idDate]
                 y_label = names(rv$data)[rv$idValue]
+
+
+                if (nrow(rv$selection) > 0) {
+                    for (i in 1:nrow(rv$selection)) {
+                        p = plotly::add_trace(
+                                        p,
+                                        type="scatter",
+                                        mode="lines",
+                                        x=c(rv$selection[[1]][i],
+                                            rv$selection[[1]][i],
+                                            rv$selection[[2]][i],
+                                            rv$selection[[2]][i],
+                                            rv$selection[[1]][i]),
+                                        y=c(0, maxValue_win,
+                                            maxValue_win, 0, 0),
+                                        fill="toself",
+                                        opacity=0.4,
+                                        fillcolor=darkCyanCOL,
+                                        line=list(width=0),
+                                        text=paste0(
+                                            "from <b>",
+                                            rv$selection[[1]][i], "</b>",
+                                            " to <b>", rv$selection[[2]][i],
+                                            "</b>"),
+                                        hoverinfo="text",
+                                        hoveron="fills",
+                                        hoverlabel=
+                                            list(bgcolor=darkCyanCOL,
+                                                 font=list(color="white",
+                                                           size=12),
+                                                 bordercolor="white"))
+                    }
+                }
+
+                p = plotly::add_trace(
+                                p,
+                                type="scatter",
+                                mode="lines",
+                                x=x_load,
+                                y=y_load,
+                                line=list(color=INRAECyanCOL,
+                                          width=1.2),
+                                xhoverformat="%d/%m/%Y",
+                                hovertemplate = paste0(
+                                    x_label, " ", "%{x}<br>",
+                                    "<b>", y_label, "</b> load %{y}",
+                                    "<extra></extra>"),
+                                hoverlabel=list(
+                                    bgcolor=INRAECyanCOL,
+                                    font=list(size=12,
+                                              color="white"),
+                                    bordercolor="white"))
                 
                 p = plotly::add_trace(
                                 p,
@@ -332,25 +399,19 @@ server = function(input, output, session) {
                                 mode="lines",
                                 x=x,
                                 y=y,
-                                line=list(color="#f0f0f0", width=1.2),
+                                line=list(color=grey94COL, width=1.2),
                                 xhoverformat="%d/%m/%Y",
                                 hovertemplate = paste0(
                                     x_label, " ", "%{x}<br>",
                                     "<b>", y_label, "</b> %{y}",
                                     "<extra></extra>"),
                                 hoverlabel=list(
-                                    bgcolor=INRAECyanCOL,
+                                    bgcolor="#161B22",
                                     font=list(size=12,
                                               color="white"),
                                     bordercolor="white"))
 
-
                 if (!is.na(rv$x1) & !is.na(rv$x2)) {
-                    if (rv$mode == "select") {
-                        fillcolor = lightCyanCOL
-                    } else {
-                        fillcolor = darkCyanCOL 
-                    }
                     p = plotly::add_trace(
                                     p,
                                     type="scatter",
@@ -361,7 +422,7 @@ server = function(input, output, session) {
                                         maxValue_win, 0, 0),
                                     fill="toself",
                                     opacity=0.4,
-                                    fillcolor=fillcolor,
+                                    fillcolor=lightCyanCOL,
                                     line=list(width=0),
                                     text=paste0(
                                         "from <b>",
@@ -377,38 +438,6 @@ server = function(input, output, session) {
                                              bordercolor="white"))
                 }
                 
-                if (nrow(rv$store) > 0) {
-                    for (i in 1:nrow(rv$store)) {
-                        p = plotly::add_trace(
-                                        p,
-                                        type="scatter",
-                                        mode="lines",
-                                        x=c(rv$store[[1]][i],
-                                            rv$store[[1]][i],
-                                            rv$store[[2]][i],
-                                            rv$store[[2]][i],
-                                            rv$store[[1]][i]),
-                                        y=c(0, maxValue_win,
-                                            maxValue_win, 0, 0),
-                                        fill="toself",
-                                        opacity=0.4,
-                                        fillcolor=darkCyanCOL,
-                                        line=list(width=0),
-                                        text=paste0(
-                                            "from <b>",
-                                            rv$store[[1]][i], "</b>",
-                                            " to <b>", rv$store[[2]][i],
-                                            "</b>"),
-                                        hoverinfo="text",
-                                        hoveron="fills",
-                                        hoverlabel=
-                                            list(bgcolor=darkCyanCOL,
-                                                 font=list(color="white",
-                                                           size=12),
-                                                 bordercolor="white"))
-                    }
-                }
-
                 p = plotly::layout(
                                 p,
                                 
@@ -423,6 +452,7 @@ server = function(input, output, session) {
                                             pad=0),
                                 
                                 xaxis=list(showgrid=FALSE,
+                                           range=rv$lim,
                                            ticks="outside",
                                            tickcolor="#516b90",
                                            tickfont=
@@ -468,57 +498,55 @@ server = function(input, output, session) {
                                          "hoverCompareCartesian",
                                          "hoverClosestCartesian")
                             )
-                # p = plotly::event_register(p, 'plotly_relayout')
+                p = plotly::event_register(p, 'plotly_relayout')
                 htmlwidgets::onRender(p, js, data="clickposition")
             })
         } else {
             output$plot = plotly::renderPlotly({
                 p = plotly::plot_ly()
-                # p = plotly::event_register(p, 'plotly_relayout')
             })
         }
     })
 
-    # observe({
-    #     rv$zoom = plotly::event_data("plotly_relayout")
-    # })
+    observe({
+        rv$zoom = plotly::event_data("plotly_relayout")
+    })
+
+    observeEvent({
+        rv$zoom
+        rv$data
+    }, {        
+        if(is.null(rv$zoom) ||
+           names(rv$zoom[1]) %in% c("xaxis.autorange", "width")) {
+            xmin = min(rv$data[[rv$idDate]], na.rm=TRUE)
+            xmax = max(rv$data[[rv$idDate]], na.rm=TRUE)
+        } else {
+            xmin = gsub("[.][[:digit:]]+$", "", rv$zoom$`xaxis.range[0]`)
+            xmax = gsub("[.][[:digit:]]+$", "", rv$zoom$`xaxis.range[1]`)
+            xmin = as.POSIXct(xmin, tryFormats=tryFormats)
+            xmax = as.POSIXct(xmax, tryFormats=tryFormats)
+
+        }
+        rv$lim = c(xmin, xmax)
+    })
 
 
 
-    
+    observeEvent(input$arrowRight, { 
+        if(!is.null(rv$zoom) &
+           !(names(rv$zoom[1]) %in% c("xaxis.autorange",
+                                      "width"))) {
+            rv$lim = rv$lim + lubridate::years(1)
+        }
+    })
 
-    # observeEvent({
-    #     rv$zoom
-    #     rv$data
-    # }, {        
-    #     if(is.null(rv$zoom) ||
-    #        names(rv$zoom[1]) %in% c("xaxis.autorange", "width")) {
-    #         xmin = min(rv$data[[rv$idDate]], na.rm=TRUE)
-    #         xmax = max(rv$data[[rv$idDate]], na.rm=TRUE)
-    #     } else {
-    #         xmin = gsub("[.][[:digit:]]+$", "", rv$zoom$`xaxis.range[0]`)
-    #         xmax = gsub("[.][[:digit:]]+$", "", rv$zoom$`xaxis.range[1]`)
-    #         xmin = as.POSIXct(xmin,
-    #                           tryFormats=c("%Y-%m-%d %H:%M:%OS",
-    #                                        "%Y/%m/%d %H:%M:%OS",
-    #                                        "%Y-%m-%d %H:%M",
-    #                                        "%Y/%m/%d %H:%M",
-    #                                        "%Y-%m-%d",
-    #                                        "%Y/%m/%d",
-    #                                        "%Y%m%d"))
-    #         xmax = as.POSIXct(xmax,
-    #                           tryFormats=c("%Y-%m-%d %H:%M:%OS",
-    #                                        "%Y/%m/%d %H:%M:%OS",
-    #                                        "%Y-%m-%d %H:%M",
-    #                                        "%Y/%m/%d %H:%M",
-    #                                        "%Y-%m-%d",
-    #                                        "%Y/%m/%d",
-    #                                        "%Y%m%d"))
-
-    #     }
-    #     rv$lim = c(xmin, xmax)
-    # })
-    
+    observeEvent(input$arrowLeft, { 
+        if(!is.null(rv$zoom) &
+           !(names(rv$zoom[1]) %in% c("xaxis.autorange",
+                                      "width"))) {
+            rv$lim = rv$lim - lubridate::years(1)
+        }
+    })
     
     
 
