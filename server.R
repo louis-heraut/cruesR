@@ -76,38 +76,55 @@ server = function(input, output, session) {
         if (!is.null(input$upload)) {
             rv$filename = gsub("[.].*$", "",
                                basename(input$upload$name))
-            rv$data = dplyr::as_tibble(read.table(
-                                 file=input$upload$datapath,
-                                 header=TRUE,
-                                 sep=";",
-                                 quote='"'))
+            r = try(read.table(file=input$upload$datapath,
+                               header=TRUE,
+                               sep=";"), silent=TRUE)
+            
+            if (!("try-error" %in% class(r)) & !is.na(r)) {
+                r = read.table(file=input$upload$datapath,
+                               header=TRUE,
+                               sep=";")
 
-            for (j in 1:ncol(rv$data)) {
-                if (is.factor(rv$data[[j]])) {
-                    d = try(as.Date(rv$data[[1, j]],
-                                    tryFormats=c("%Y-%m-%d",
-                                                 "%Y/%m/%d",
-                                                 "%Y%m%d")))
-                    test = nchar(as.character(rv$data[[1, j]])) > 10
-                    if("try-error" %in% class(d) || is.na(d) | test) {
-                        rv$data[j] = as.character(rv$data[[j]])
-                    } else {
-                        rv$data[j] = as.Date(rv$data[[j]])
+                if (ncol(r) > 1) {
+                    rv$data = dplyr::as_tibble(read.table(
+                                         file=input$upload$datapath,
+                                         header=TRUE,
+                                         sep=";"))
+
+                    for (j in 1:ncol(rv$data)) {
+                        if (is.factor(rv$data[[j]])) {
+                            d = try(as.Date(rv$data[[1, j]],
+                                            tryFormats=c("%Y-%m-%d",
+                                                         "%Y/%m/%d",
+                                                         "%Y%m%d")))
+                            test =
+                                nchar(as.character(rv$data[[1, j]])) > 10
+                            if("try-error" %in% class(d) || is.na(d) | test) {
+                                rv$data[j] = as.character(rv$data[[j]])
+                            } else {
+                                rv$data[j] = as.Date(rv$data[[j]])
+                            }
+                        }
                     }
-                }
-            }
-            
-            rv$idDate = 1
-            rv$idValue = 2
-            rv$data[[rv$idDate]] =
-                as.POSIXct(as.character(rv$data[[rv$idDate]]),
-                           tryFormats=tryFormats)
+                    
+                    rv$idDate = 1
+                    rv$idValue = 2
+                    rv$data[[rv$idDate]] =
+                        as.POSIXct(as.character(rv$data[[rv$idDate]]),
+                                   tryFormats=tryFormats)
 
-            rv$data_load = rv$data
-            
-            showElement(id='ana_panel')
-            showElement(id='info_panel')
-            showElement(id='plot_panel')
+                    rv$data_load = rv$data
+                    
+                    showElement(id='ana_panel')
+                    showElement(id='info_panel')
+                    showElement(id='plot_panel')
+                    
+                } else {
+                    rv$data = NULL
+                }
+            } else {
+                rv$data = NULL
+            }
         } else {
             rv$data = NULL
         }
@@ -172,32 +189,34 @@ server = function(input, output, session) {
 
     
     observeEvent(input$linearise.linearise_button, {
-        deselect_mode(session, rv)
-        
-        x1 = as.POSIXct(rv$x1)
-        x2 = as.POSIXct(rv$x2)
-        
-        id1 = which.min(abs(rv$data[[rv$idDate]]-x1))
-        y1 = rv$data[[rv$idValue]][id1]
-        id2 = which.min(abs(rv$data[[rv$idDate]]-x2))
-        y2 = rv$data[[rv$idValue]][id2]
-        
-        a = (y2-y1) / as.numeric(difftime(x2, x1, units="secs"))
-        b = y1 - a*as.numeric(x1)
+        if (!is.na(rv$x1) & !is.na(rv$x2)) {
+            deselect_mode(session, rv)
+            
+            x1 = as.POSIXct(rv$x1)
+            x2 = as.POSIXct(rv$x2)
+            
+            id1 = which.min(abs(rv$data[[rv$idDate]]-x1))
+            y1 = rv$data[[rv$idValue]][id1]
+            id2 = which.min(abs(rv$data[[rv$idDate]]-x2))
+            y2 = rv$data[[rv$idValue]][id2]
+            
+            a = (y2-y1) / as.numeric(difftime(x2, x1, units="secs"))
+            b = y1 - a*as.numeric(x1)
 
-        ok = x1 <= rv$data[[rv$idDate]] &
-            rv$data[[rv$idDate]] <= x2
-        
-        rv$data[[rv$idValue]][ok] =
-            a*as.numeric(rv$data[[rv$idDate]][ok]) + b
-        
-        rv$id_linearise = rv$id_linearise + 1
-        rv$linearise = dplyr::bind_rows(
-                                  rv$linearise,
-                                  dplyr::tibble(start=x1,
-                                                end=x2))
-        rv$x1 = NA
-        rv$x2 = NA
+            ok = x1 <= rv$data[[rv$idDate]] &
+                rv$data[[rv$idDate]] <= x2
+            
+            rv$data[[rv$idValue]][ok] =
+                a*as.numeric(rv$data[[rv$idDate]][ok]) + b
+            
+            rv$id_linearise = rv$id_linearise + 1
+            rv$linearise = dplyr::bind_rows(
+                                      rv$linearise,
+                                      dplyr::tibble(start=x1,
+                                                    end=x2))
+            rv$x1 = NA
+            rv$x2 = NA
+        }
     })
 
     observeEvent(input$linearise.remove_button, {
