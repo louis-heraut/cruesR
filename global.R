@@ -28,9 +28,6 @@ library(dplyr)
 library(plotly)
 library(lubridate)
 
-print(sessionInfo())
-
-
 # Sourcing R files
 source('tools.R', encoding='UTF-8')
 source('settings.R', encoding='UTF-8')
@@ -41,3 +38,5 @@ source('ui.R', encoding='UTF-8')
 
 # Running app localy
 shinyApp(ui=ui, server=server)
+
+

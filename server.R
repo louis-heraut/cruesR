@@ -30,7 +30,7 @@
 #' ...
 #' @export
 server = function(input, output, session) {
-    session$onSessionEnded(stopApp)
+    # session$onSessionEnded(stopApp)
 
     js <- "
     function(el, x, inputName){
@@ -79,17 +79,23 @@ server = function(input, output, session) {
             r = try(read.table(file=input$upload$datapath,
                                header=TRUE,
                                sep=";"), silent=TRUE)
+
+            print(input$upload$datapath)
+            print(r)
             
             if (!("try-error" %in% class(r)) & !is.na(r)) {
                 r = read.table(file=input$upload$datapath,
                                header=TRUE,
                                sep=";")
+                print(r)
 
                 if (ncol(r) > 1) {
                     rv$data = as_tibble(read.table(
                         file=input$upload$datapath,
                         header=TRUE,
                         sep=";"))
+
+                    print(rv$data)
                     
                     rv$idDate = 1
                     rv$idValue = 2
@@ -114,6 +120,8 @@ server = function(input, output, session) {
                                         by=names(rv$data)[rv$idDate])
                     
                     rv$data_load = rv$data
+
+                    print("ok")
                     
                     showElement(id='ana_panel')
                     showElement(id='info_panel')
