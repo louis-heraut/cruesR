@@ -257,9 +257,9 @@ ui = bootstrapPage(
                    margin-left: 10px;
                    margin-bottom: 10px;
                    margin-right: 20px;",
-                plotly::plotlyOutput("plot",
-                                     width="auto",
-                                     height="auto"))
+                plotlyOutput("plot",
+                             width="auto",
+                             height="auto"))
         )
     )
 

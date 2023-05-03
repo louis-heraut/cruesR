@@ -25,6 +25,10 @@ library(shinyWidgets)
 library(htmlwidgets)
 library(icons)
 library(dplyr)
+library(plotly)
+library(lubridate)
+
+print(sessionInfo())
 
 
 # Sourcing R files

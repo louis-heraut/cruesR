@@ -58,7 +58,7 @@ file.choose = function(...) {
 }
 
 create_iconLib = function (icon_dir, resources_path) {
-    iconLib = icons::icon_set(file.path(resources_path, icon_dir))
+    iconLib = icon_set(file.path(resources_path, icon_dir))
     return (iconLib)
 }
 

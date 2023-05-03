@@ -66,9 +66,9 @@ server = function(input, output, session) {
                         idDate=NA,
                         idValue=NA,
                         zoom=NULL,
-                        linearise=dplyr::tibble(),
-                        selection=dplyr::tibble(),
-                        selection_full=dplyr::tibble())
+                        linearise=tibble(),
+                        selection=tibble(),
+                        selection_full=tibble())
 
     
     observeEvent(input$upload, {
@@ -86,33 +86,33 @@ server = function(input, output, session) {
                                sep=";")
 
                 if (ncol(r) > 1) {
-                    rv$data = dplyr::as_tibble(read.table(
-                                         file=input$upload$datapath,
-                                         header=TRUE,
-                                         sep=";"))
-
-                    for (j in 1:ncol(rv$data)) {
-                        if (is.factor(rv$data[[j]])) {
-                            d = try(as.Date(rv$data[[1, j]],
-                                            tryFormats=c("%Y-%m-%d",
-                                                         "%Y/%m/%d",
-                                                         "%Y%m%d")))
-                            test =
-                                nchar(as.character(rv$data[[1, j]])) > 10
-                            if("try-error" %in% class(d) || is.na(d) | test) {
-                                rv$data[j] = as.character(rv$data[[j]])
-                            } else {
-                                rv$data[j] = as.Date(rv$data[[j]])
-                            }
-                        }
-                    }
+                    rv$data = as_tibble(read.table(
+                        file=input$upload$datapath,
+                        header=TRUE,
+                        sep=";"))
                     
                     rv$idDate = 1
                     rv$idValue = 2
+
+                    rv$data = rv$data[, c(rv$idDate, rv$idValue)]
+                    
                     rv$data[[rv$idDate]] =
                         as.POSIXct(as.character(rv$data[[rv$idDate]]),
-                                   tryFormats=tryFormats)
+                                   tryFormats=tryFormats,
+                                   tz="UTC")
 
+                    by = min(diff(rv$data[[rv$idDate]]), na.rm=TRUE)
+                        
+                    Date = seq.POSIXt(min(rv$data[[rv$idDate]],
+                                          na.rm=TRUE),
+                                      max(rv$data[[rv$idDate]],
+                                          na.rm=TRUE),
+                                      by)
+                    data_no_miss =
+                        tibble(!!names(rv$data)[rv$idDate]:=Date)
+                    rv$data = left_join(data_no_miss, rv$data,
+                                        by=names(rv$data)[rv$idDate])
+                    
                     rv$data_load = rv$data
                     
                     showElement(id='ana_panel')
@@ -167,9 +167,11 @@ server = function(input, output, session) {
     observeEvent(input$clickposition, {
         if (rv$mode == "select") {
             if (is.na(rv$x1_tmp)) {
-                rv$x1_tmp = as.POSIXct(input$clickposition[1])
+                rv$x1_tmp = as.POSIXct(input$clickposition[1],
+                                       tz="UTC")
             } else {
-                rv$x2_tmp = as.POSIXct(input$clickposition[1])
+                rv$x2_tmp = as.POSIXct(input$clickposition[1],
+                                       tz="UTC")
             }
         }
     })
@@ -192,8 +194,8 @@ server = function(input, output, session) {
         if (!is.na(rv$x1) & !is.na(rv$x2)) {
             deselect_mode(session, rv)
             
-            x1 = as.POSIXct(rv$x1)
-            x2 = as.POSIXct(rv$x2)
+            x1 = as.POSIXct(rv$x1, tz="UTC")
+            x2 = as.POSIXct(rv$x2, tz="UTC")
             
             id1 = which.min(abs(rv$data[[rv$idDate]]-x1))
             y1 = rv$data[[rv$idValue]][id1]
@@ -210,10 +212,10 @@ server = function(input, output, session) {
                 a*as.numeric(rv$data[[rv$idDate]][ok]) + b
             
             rv$id_linearise = rv$id_linearise + 1
-            rv$linearise = dplyr::bind_rows(
-                                      rv$linearise,
-                                      dplyr::tibble(start=x1,
-                                                    end=x2))
+            rv$linearise = bind_rows(
+                rv$linearise,
+                tibble(start=x1,
+                       end=x2))
             rv$x1 = NA
             rv$x2 = NA
         }
@@ -234,23 +236,23 @@ server = function(input, output, session) {
     observeEvent(input$linearise.reset_button, {
         deselect_mode(session, rv)
         rv$id_linearise = 0
-        rv$linearise = dplyr::tibble()
+        rv$linearise = tibble()
     })
     
     observeEvent(input$selection.store_button, {
         deselect_mode(session, rv)
         rv$id_selection = rv$id_selection + 1
-        data = dplyr::filter(rv$data,
-                             rv$x1 <= rv$data[[rv$idDate]] &
-                             rv$data[[rv$idDate]] <= rv$x2)
-        rv$selection_full = dplyr::bind_rows(
-                                   rv$selection_full,
-                                   dplyr::tibble(id_selection=rv$id_selection,
-                                                 data))
-        rv$selection = dplyr::bind_rows(
-                              rv$selection,
-                              dplyr::tibble(start=rv$x1,
-                                            end=rv$x2))
+        data = filter(rv$data,
+                      rv$x1 <= rv$data[[rv$idDate]] &
+                      rv$data[[rv$idDate]] <= rv$x2)
+        rv$selection_full = bind_rows(
+            rv$selection_full,
+            tibble(data,
+                   id_selection=rv$id_selection))
+        rv$selection = bind_rows(
+            rv$selection,
+            tibble(start=rv$x1,
+                   end=rv$x2))
         rv$x1 = NA
         rv$x2 = NA
     })
@@ -258,15 +260,16 @@ server = function(input, output, session) {
     observeEvent(input$selection.remove_button, {
         deselect_mode(session, rv)
         rv$selection = rv$selection[1:(nrow(rv$selection)-1),]
-        rv$selection_full = dplyr::filter(rv$selection_full, id_selection != rv$id_selection)
+        rv$selection_full = filter(rv$selection_full,
+                                   id_selection != rv$id_selection)
         rv$id_selection = rv$id_selection - 1
     })
 
     observeEvent(input$selection.reset_button, {
         deselect_mode(session, rv)
         rv$id_selection = 0
-        rv$selection = dplyr::tibble()
-        rv$selection_full = dplyr::tibble()
+        rv$selection = tibble()
+        rv$selection_full = tibble()
     })
 
 
@@ -344,12 +347,12 @@ server = function(input, output, session) {
     }, {
 
         if (!is.null(rv$data)) {
-            output$plot = plotly::renderPlotly({
+            output$plot = renderPlotly({
                 
-                shiny::validate(need(!is.null(input$upload),
-                                     message=FALSE))
+                validate(need(!is.null(input$upload),
+                              message=FALSE))
                 
-                p = plotly::plot_ly()
+                p = plot_ly()
 
                 x_load = rv$data_load[[rv$idDate]]
                 y_load = rv$data_load[[rv$idValue]]
@@ -363,172 +366,172 @@ server = function(input, output, session) {
 
                 if (nrow(rv$selection) > 0) {
                     for (i in 1:nrow(rv$selection)) {
-                        p = plotly::add_trace(
-                                        p,
-                                        type="scatter",
-                                        mode="lines",
-                                        x=c(rv$selection[[1]][i],
-                                            rv$selection[[1]][i],
-                                            rv$selection[[2]][i],
-                                            rv$selection[[2]][i],
-                                            rv$selection[[1]][i]),
-                                        y=c(0, maxValue_win,
-                                            maxValue_win, 0, 0),
-                                        fill="toself",
-                                        opacity=0.4,
-                                        fillcolor=darkCyanCOL,
-                                        line=list(width=0),
-                                        text=paste0(
-                                            "from <b>",
-                                            rv$selection[[1]][i], "</b>",
-                                            " to <b>", rv$selection[[2]][i],
-                                            "</b>"),
-                                        hoverinfo="text",
-                                        hoveron="fills",
-                                        hoverlabel=
-                                            list(bgcolor=darkCyanCOL,
-                                                 font=list(color="white",
-                                                           size=12),
-                                                 bordercolor="white"))
+                        p = add_trace(
+                            p,
+                            type="scatter",
+                            mode="lines",
+                            x=c(rv$selection[[1]][i],
+                                rv$selection[[1]][i],
+                                rv$selection[[2]][i],
+                                rv$selection[[2]][i],
+                                rv$selection[[1]][i]),
+                            y=c(0, maxValue_win,
+                                maxValue_win, 0, 0),
+                            fill="toself",
+                            opacity=0.4,
+                            fillcolor=darkCyanCOL,
+                            line=list(width=0),
+                            text=paste0(
+                                "from <b>",
+                                rv$selection[[1]][i], "</b>",
+                                " to <b>", rv$selection[[2]][i],
+                                "</b>"),
+                            hoverinfo="text",
+                            hoveron="fills",
+                            hoverlabel=
+                                list(bgcolor=darkCyanCOL,
+                                     font=list(color="white",
+                                               size=12),
+                                     bordercolor="white"))
                     }
                 }
 
-                p = plotly::add_trace(
-                                p,
-                                type="scatter",
-                                mode="lines",
-                                x=x_load,
-                                y=y_load,
-                                line=list(color=INRAECyanCOL,
-                                          width=1.2),
-                                xhoverformat="%d/%m/%Y",
-                                hovertemplate = paste0(
-                                    x_label, " ", "%{x}<br>",
-                                    "<b>", y_label, "</b> load %{y}",
-                                    "<extra></extra>"),
-                                hoverlabel=list(
-                                    bgcolor=INRAECyanCOL,
-                                    font=list(size=12,
-                                              color="white"),
-                                    bordercolor="white"))
+                p = add_trace(
+                    p,
+                    type="scatter",
+                    mode="lines",
+                    x=x_load,
+                    y=y_load,
+                    line=list(color=INRAECyanCOL,
+                              width=1.2),
+                    xhoverformat="%d/%m/%Y",
+                    hovertemplate = paste0(
+                        x_label, " ", "%{x}<br>",
+                        "<b>", y_label, "</b> load %{y}",
+                        "<extra></extra>"),
+                    hoverlabel=list(
+                        bgcolor=INRAECyanCOL,
+                        font=list(size=12,
+                                  color="white"),
+                        bordercolor="white"))
                 
-                p = plotly::add_trace(
-                                p,
-                                type="scatter",
-                                mode="lines",
-                                x=x,
-                                y=y,
-                                line=list(color=grey94COL, width=1.2),
-                                xhoverformat="%d/%m/%Y",
-                                hovertemplate = paste0(
-                                    x_label, " ", "%{x}<br>",
-                                    "<b>", y_label, "</b> %{y}",
-                                    "<extra></extra>"),
-                                hoverlabel=list(
-                                    bgcolor="#161B22",
-                                    font=list(size=12,
-                                              color="white"),
-                                    bordercolor="white"))
+                p = add_trace(
+                    p,
+                    type="scatter",
+                    mode="lines",
+                    x=x,
+                    y=y,
+                    line=list(color=grey94COL, width=1.2),
+                    xhoverformat="%d/%m/%Y",
+                    hovertemplate = paste0(
+                        x_label, " ", "%{x}<br>",
+                        "<b>", y_label, "</b> %{y}",
+                        "<extra></extra>"),
+                    hoverlabel=list(
+                        bgcolor="#161B22",
+                        font=list(size=12,
+                                  color="white"),
+                        bordercolor="white"))
 
                 if (!is.na(rv$x1) & !is.na(rv$x2)) {
-                    p = plotly::add_trace(
-                                    p,
-                                    type="scatter",
-                                    mode="lines",
-                                    x=c(rv$x1, rv$x1,
-                                        rv$x2, rv$x2, rv$x1),
-                                    y=c(0, maxValue_win,
-                                        maxValue_win, 0, 0),
-                                    fill="toself",
-                                    opacity=0.4,
-                                    fillcolor=lightCyanCOL,
-                                    line=list(width=0),
-                                    text=paste0(
-                                        "from <b>",
-                                        rv$x1, "</b>",
-                                        " to <b>", rv$x2,
-                                        "</b>"),
-                                    hoverinfo="text",
-                                    hoveron="fills",
-                                    hoverlabel=
-                                        list(bgcolor=lightCyanCOL,
-                                             font=list(color="white",
-                                                       size=12),
-                                             bordercolor="white"))
+                    p = add_trace(
+                        p,
+                        type="scatter",
+                        mode="lines",
+                        x=c(rv$x1, rv$x1,
+                            rv$x2, rv$x2, rv$x1),
+                        y=c(0, maxValue_win,
+                            maxValue_win, 0, 0),
+                        fill="toself",
+                        opacity=0.4,
+                        fillcolor=lightCyanCOL,
+                        line=list(width=0),
+                        text=paste0(
+                            "from <b>",
+                            rv$x1, "</b>",
+                            " to <b>", rv$x2,
+                            "</b>"),
+                        hoverinfo="text",
+                        hoveron="fills",
+                        hoverlabel=
+                            list(bgcolor=lightCyanCOL,
+                                 font=list(color="white",
+                                           size=12),
+                                 bordercolor="white"))
                 }
                 
-                p = plotly::layout(
-                                p,
-                                
-                                autosize=FALSE,
-                                separators='. ',
-                                width=input$dimension[1]-45,
-                                height=340,
-                                margin=list(l=0,
-                                            r=0,
-                                            b=0,
-                                            t=0,
-                                            pad=0),
-                                
-                                xaxis=list(showgrid=FALSE,
-                                           range=rv$lim,
-                                           ticks="outside",
-                                           tickcolor="#516b90",
-                                           tickfont=
-                                               list(color="#b3c0d4"),
-                                           showticklabels=TRUE),
-                                
-                                yaxis=list(
-                                    range=c(0, maxValue_win),
-                                    title=list(
-                                        text=paste0(
-                                            "<b>",
-                                            y_label,
-                                            "</b>"),
-                                        font=
-                                            list(color="#405472")),
-                                    gridcolor="#1e2735",
-                                    gridwidth=0.6,
-                                    ticks="outside",
-                                    tickcolor="#516b90",
-                                    tickfont=list(color="#b3c0d4"),
-                                    zerolinecolor="#1e2735",
-                                    zerolinewidth=1.4,
-                                    fixedrange=TRUE),
+                p = layout(
+                    p,
+                    
+                    autosize=FALSE,
+                    separators='. ',
+                    width=input$dimension[1]-45,
+                    height=340,
+                    margin=list(l=0,
+                                r=0,
+                                b=0,
+                                t=0,
+                                pad=0),
+                    
+                    xaxis=list(showgrid=FALSE,
+                               range=rv$lim,
+                               ticks="outside",
+                               tickcolor="#516b90",
+                               tickfont=
+                                   list(color="#b3c0d4"),
+                               showticklabels=TRUE),
+                    
+                    yaxis=list(
+                        range=c(0, maxValue_win),
+                        title=list(
+                            text=paste0(
+                                "<b>",
+                                y_label,
+                                "</b>"),
+                            font=
+                                list(color="#405472")),
+                        gridcolor="#1e2735",
+                        gridwidth=0.6,
+                        ticks="outside",
+                        tickcolor="#516b90",
+                        tickfont=list(color="#b3c0d4"),
+                        zerolinecolor="#1e2735",
+                        zerolinewidth=1.4,
+                        fixedrange=TRUE),
 
-                                autosize=FALSE,
-                                plot_bgcolor='transparent',
-                                paper_bgcolor='transparent',
-                                showlegend=FALSE)
+                    autosize=FALSE,
+                    plot_bgcolor='transparent',
+                    paper_bgcolor='transparent',
+                    showlegend=FALSE)
 
-                p = plotly::config(
-                                p,
-                                locale="fr",
-                                displaylogo=FALSE,
-                                toImageButtonOptions =
-                                    list(format="svg"),
-                                modeBarButtonsToRemove =
-                                    list("lasso2d",
-                                         "select2d",
-                                         "drawline",
-                                         # "zoom2d",
-                                         "drawrect",
-                                         "autoScale2d",
-                                         "hoverCompareCartesian",
-                                         "hoverClosestCartesian")
-                            )
-                p = plotly::event_register(p, 'plotly_relayout')
-                htmlwidgets::onRender(p, js, data="clickposition")
+                p = config(
+                    p,
+                    locale="fr",
+                    displaylogo=FALSE,
+                    toImageButtonOptions =
+                        list(format="svg"),
+                    modeBarButtonsToRemove =
+                        list("lasso2d",
+                             "select2d",
+                             "drawline",
+                             # "zoom2d",
+                             "drawrect",
+                             "autoScale2d",
+                             "hoverCompareCartesian",
+                             "hoverClosestCartesian")
+                )
+                p = event_register(p, 'plotly_relayout')
+                onRender(p, js, data="clickposition")
             })
         } else {
-            output$plot = plotly::renderPlotly({
-                p = plotly::plot_ly()
+            output$plot = renderPlotly({
+                p = plot_ly()
             })
         }
     })
 
     observe({
-        rv$zoom = plotly::event_data("plotly_relayout")
+        rv$zoom = event_data("plotly_relayout")
     })
 
     observeEvent({
@@ -542,8 +545,8 @@ server = function(input, output, session) {
         } else {
             xmin = gsub("[.][[:digit:]]+$", "", rv$zoom$`xaxis.range[0]`)
             xmax = gsub("[.][[:digit:]]+$", "", rv$zoom$`xaxis.range[1]`)
-            xmin = as.POSIXct(xmin, tryFormats=tryFormats)
-            xmax = as.POSIXct(xmax, tryFormats=tryFormats)
+            xmin = as.POSIXct(xmin, tryFormats=tryFormats, tz="UTC")
+            xmax = as.POSIXct(xmax, tryFormats=tryFormats, tz="UTC")
 
         }
         rv$lim = c(xmin, xmax)
@@ -555,7 +558,7 @@ server = function(input, output, session) {
         if(!is.null(rv$zoom) &
            !(names(rv$zoom[1]) %in% c("xaxis.autorange",
                                       "width"))) {
-            rv$lim = rv$lim + lubridate::years(1)
+            rv$lim = rv$lim + years(1)
         }
     })
 
@@ -563,7 +566,7 @@ server = function(input, output, session) {
         if(!is.null(rv$zoom) &
            !(names(rv$zoom[1]) %in% c("xaxis.autorange",
                                       "width"))) {
-            rv$lim = rv$lim - lubridate::years(1)
+            rv$lim = rv$lim - years(1)
         }
     })
     
