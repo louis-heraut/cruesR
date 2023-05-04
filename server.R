@@ -80,22 +80,16 @@ server = function(input, output, session) {
                                header=TRUE,
                                sep=";"), silent=TRUE)
 
-            print(input$upload$datapath)
-            print(r)
-            
-            if (!("try-error" %in% class(r)) & !is.na(r)) {
+            if (!any("try-error" %in% class(r)) & !any(is.na(r))) {
                 r = read.table(file=input$upload$datapath,
                                header=TRUE,
                                sep=";")
-                print(r)
 
                 if (ncol(r) > 1) {
                     rv$data = as_tibble(read.table(
                         file=input$upload$datapath,
                         header=TRUE,
                         sep=";"))
-
-                    print(rv$data)
                     
                     rv$idDate = 1
                     rv$idValue = 2
@@ -106,14 +100,18 @@ server = function(input, output, session) {
                         as.POSIXct(as.character(rv$data[[rv$idDate]]),
                                    tryFormats=tryFormats,
                                    tz="UTC")
+                    
+                    rv$data = distinct(
+                        rv$data,
+                        !!names(rv$data)[rv$idDate]:=
+                            get(names(rv$data)[rv$idDate]),
+                        .keep_all=TRUE)
 
+                    from = min(rv$data[[rv$idDate]], na.rm=TRUE)
+                    to = max(rv$data[[rv$idDate]], na.rm=TRUE)
                     by = min(diff(rv$data[[rv$idDate]]), na.rm=TRUE)
-                        
-                    Date = seq.POSIXt(min(rv$data[[rv$idDate]],
-                                          na.rm=TRUE),
-                                      max(rv$data[[rv$idDate]],
-                                          na.rm=TRUE),
-                                      by)
+                    
+                    Date = seq.POSIXt(from, to, by)
                     data_no_miss =
                         tibble(!!names(rv$data)[rv$idDate]:=Date)
                     rv$data = left_join(data_no_miss, rv$data,
@@ -121,8 +119,6 @@ server = function(input, output, session) {
                     
                     rv$data_load = rv$data
 
-                    print("ok")
-                    
                     showElement(id='ana_panel')
                     showElement(id='info_panel')
                     showElement(id='plot_panel')
