@@ -246,17 +246,19 @@ server = function(input, output, session) {
     observeEvent(input$selection.store_button, {
         deselect_mode(session, rv)
         rv$id_selection = rv$id_selection + 1
+        xmin = min(c(rv$x1, rv$x2), na.rm=TRUE)
+        xmax = max(c(rv$x1, rv$x2), na.rm=TRUE)
         data = filter(rv$data,
-                      rv$x1 <= rv$data[[rv$idDate]] &
-                      rv$data[[rv$idDate]] <= rv$x2)
+                      xmin <= rv$data[[rv$idDate]] &
+                      rv$data[[rv$idDate]] <= xmax)
         rv$selection_full = bind_rows(
             rv$selection_full,
             tibble(data,
                    id_selection=rv$id_selection))
         rv$selection = bind_rows(
             rv$selection,
-            tibble(start=rv$x1,
-                   end=rv$x2))
+            tibble(start=xmin,
+                   end=xmax))
         rv$x1 = NA
         rv$x2 = NA
     })
@@ -367,6 +369,8 @@ server = function(input, output, session) {
                 x_label = names(rv$data)[rv$idDate]
                 y_label = names(rv$data)[rv$idValue]
 
+                xmin = min(c(rv$x1, rv$x2), na.rm=TRUE)
+                xmax = max(c(rv$x1, rv$x2), na.rm=TRUE)
 
                 if (nrow(rv$selection) > 0) {
                     for (i in 1:nrow(rv$selection)) {
@@ -452,8 +456,8 @@ server = function(input, output, session) {
                         line=list(width=0),
                         text=paste0(
                             "from <b>",
-                            rv$x1, "</b>",
-                            " to <b>", rv$x2,
+                            xmin, "</b>",
+                            " to <b>", xmax,
                             "</b>"),
                         hoverinfo="text",
                         hoveron="fills",
