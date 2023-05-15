@@ -49,10 +49,12 @@ INRAECyanCOL = "#00a3a6"
 
 tryFormats = c("%Y-%m-%d %H:%M:%OS",
                "%Y/%m/%d %H:%M:%OS",
+               "%d/%m/%Y %H:%M:%OS",
                "%Y-%m-%d %H:%M",
                "%Y/%m/%d %H:%M",
                "%Y-%m-%d",
                "%Y/%m/%d",
+               "%d/%m/%Y",
                "%Y%m%d")
 
 
