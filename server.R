@@ -107,15 +107,15 @@ server = function(input, output, session) {
                             get(names(rv$data)[rv$idDate]),
                         .keep_all=TRUE)
 
-                    from = min(rv$data[[rv$idDate]], na.rm=TRUE)
-                    to = max(rv$data[[rv$idDate]], na.rm=TRUE)
-                    by = min(diff(rv$data[[rv$idDate]]), na.rm=TRUE)
+                    # from = min(rv$data[[rv$idDate]], na.rm=TRUE)
+                    # to = max(rv$data[[rv$idDate]], na.rm=TRUE)
+                    # by = min(diff(rv$data[[rv$idDate]]), na.rm=TRUE)
                     
-                    Date = seq.POSIXt(from, to, by)
-                    data_no_miss =
-                        tibble(!!names(rv$data)[rv$idDate]:=Date)
-                    rv$data = left_join(data_no_miss, rv$data,
-                                        by=names(rv$data)[rv$idDate])
+                    # Date = seq.POSIXt(from, to, by)
+                    # data_no_miss =
+                        # tibble(!!names(rv$data)[rv$idDate]:=Date)
+                    # rv$data = left_join(data_no_miss, rv$data,
+                                        # by=names(rv$data)[rv$idDate])
                     
                     rv$data_load = rv$data
 
