@@ -1,12 +1,12 @@
-# cruesR [<img src="www/algea_AE.png" align="right" width=160 height=160 alt=""/>](https://www.inrae.fr/en)
+# cruesR [<img src="www/algea_AE.png" align="right" width=160 height=160 alt=""/>](https://crues-r.sk8.inrae.fr/)
 
 <!-- badges: start -->
-
+[![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-green)](https://lifecycle.r-lib.org/articles/stages.html)
 ![](https://img.shields.io/github/last-commit/super-lou/cruesR)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md)
 <!-- badges: end -->
 
-A shiny application that make time series event selection simpler
+[CruesR](https://crues-r.sk8.inrae.fr/) is a Shiny application that simplifies the selection of events from time series chronicles derived from the [HydroPortal](https://www.hydro.eaufrance.fr/).
 
 This project was carried out for National Research Institute for Agriculture, Food and the Environment (Institut National de Recherche pour l’Agriculture, l’Alimentation et l’Environnement, [INRAE](https://agriculture.gouv.fr/inrae-linstitut-national-de-recherche-pour-lagriculture-lalimentation-et-lenvironnement) in french).
 
