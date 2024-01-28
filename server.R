@@ -279,10 +279,32 @@ server = function(input, output, session) {
     })
 
 
+    file_info = reactive({
+        if (is.null(rv$data)) {
+            "<font size='3' color='#00a3a6'>Select a txt file with a <font color='#66c1bf'><b>character date format</b></font> as first column and a <font color='#66c1bf'><b>numeric value</b></font> as second column.</font>"
+        } else {
+            ""
+        }
+    })
+    output$file_info = renderUI({
+        HTML(file_info())
+    })
 
     info = reactive({
         if (nrow(rv$selection) == 0 & is.na(rv$x1) & is.na(rv$x2)) {
-            "<font size='3' color='#00a3a6'>Select a period on the graph and click on the </font><font size='3' color='#66c1bf'><b>Store</b></font><font size='3' color='#00a3a6'> button</font>"
+
+            print(rv$mode)
+            
+            if (input$mode_choice == "Linearise") { 
+                "<font size='3' color='#00a3a6'>Click on <font color='#66c1bf'><b>Select</b></font> and then click on the graph to select a period. Then click on <font color='#66c1bf'><b>Linearise</b></font> to linearise the selected period.</font>" 
+            } else if (input$mode_choice == "Selection") {
+                "<font size='3' color='#00a3a6'>Click on <font color='#66c1bf'><b>Select</b></font> and then click on the graph to select a period. Then click on <font color='#66c1bf'><b>Store</b></font> to register the selected period.</font>" 
+            } else if (input$mode_choice == "Download") {
+                "<font size='3' color='#00a3a6'>Click on <font color='#66c1bf'><b>All</b></font> to download your selection.</font>" 
+            } else {
+                ""
+            }
+            
         } else {
 
             start = rev(rv$selection$start)
@@ -318,7 +340,6 @@ server = function(input, output, session) {
             paste0(tmp, collapse="&emsp;")
         }
     })
-
     output$info = renderUI({
         HTML(info())
     })

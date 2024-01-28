@@ -109,8 +109,13 @@ ui = bootstrapPage(
         height="auto",
         left=10, top=110,
 
+
+        div(class="Row",
+            div(htmlOutput(outputId="file_info"))),
+        
         div(class="Row",
             div(class="row-label",
+                
                 HTML(paste0("<span><b>Data</b></span>"))),
             div(class="sep"),
             div(class="bunch",
